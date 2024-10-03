@@ -7,7 +7,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load the openai-api-key
-load_dotenv()
+load_dotenv() # should be a .env file
 
 # set the api_key
 client = OpenAI(
