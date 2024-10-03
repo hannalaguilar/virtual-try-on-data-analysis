@@ -1,19 +1,20 @@
 import re
 import os
-import openai
+import time
 import pandas as pd
-from openai import OpenAI
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from dotenv import load_dotenv
 
-# Load the openai-api-key
-load_dotenv() # should be a .env file
+model_name = "EleutherAI/gpt-j-6B"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name)
 
-# set the api_key
-client = OpenAI(
-    # This is the default and can be omitted
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+
+def classify_text_with_llama(prompt: str) -> str:
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(**inputs, max_length=100)
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return generated_text.strip()
 
 
 def classify_captions_to_dataframe(input_txt_path: str) -> pd.DataFrame:
@@ -24,34 +25,24 @@ def classify_captions_to_dataframe(input_txt_path: str) -> pd.DataFrame:
     # Prepare a list to store the classified rows
     classified_rows = []
 
-    # Define the prompt for ChatGPT
-    prompt = f"""Classify the following text into three categories: sleeves type, neck type, and item.
-            Provide the result in a string format separated by ',' as "sleeves_type, neck_type, item".
-            If a category is not present, mark it as "N/A".
-
-            Example:
-            Text: "Short Sleeves Round Neck T-Shirt"
-            Result: "Short Sleeves, Round Neck, T-Shirt"
-            """
-
-    # Get the response from OpenAI API
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
 
     # Process each line in the input data
     for line in input_data:
         # Split the filename and description
         filename, description = line.strip().split(' ', 1)
 
-        # Extraer la respuesta del modelo
-        result = response['choices'][0]['message']['content'].strip()
+        # Define the prompt for ChatGPT
+        prompt = f"""Classify the following text into three categories: sleeves type, neck type, and item.
+                Provide the result in a string format separated by ',' as "sleeves_type, neck_type, item".
+                If a category is not present, mark it as "N/A".
+
+                Example:
+                Text: "Short Sleeves Round Neck T-Shirt"
+                Result: "Short Sleeves, Round Neck, T-Shirt"
+                """
+
+        # Get the response from the model
+        result = classify_text_with_llama(prompt)
 
         # Split the result into the three categories
         sleeves_type, neck_type, item = result.split(', ')
